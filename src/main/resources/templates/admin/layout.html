@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title layout:title-pattern="$CONTENT_TITLE - 書店管理系統">書店管理系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --header-height: 60px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-header h3 {
+            color: white;
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+        
+        .nav-item {
+            margin-bottom: 5px;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.08);
+            border-left-color: #3498db;
+        }
+        
+        .nav-link.active {
+            color: white;
+            background-color: rgba(52, 152, 219, 0.2);
+            border-left-color: #3498db;
+        }
+        
+        .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: white;
+            padding: 15px 20px;
+            margin: -20px -20px 20px -20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            border: none;
+            padding: 15px 20px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 20px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table th {
+            background-color: #f8f9fa;
+            border: none;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .table td {
+            border: none;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: middle;
+        }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #2c3e50;
+            font-size: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+        }
+    </style>
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+</head>
+<body>
+    <!-- 側邊欄 -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-book-open"></i> 書店管理</h3>
+        </div>
+        
+        <div class="sidebar-nav">
+            <div class="nav-item">
+                <a href="/admin/dashboard" class="nav-link" th:classappend="${activeMenu == 'dashboard' ? 'active' : ''}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    儀表板
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="/admin/users" class="nav-link" th:classappend="${activeMenu == 'users' ? 'active' : ''}">
+                    <i class="fas fa-users"></i>
+                    會員管理
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="/admin/books" class="nav-link" th:classappend="${activeMenu == 'books' ? 'active' : ''}">
+                    <i class="fas fa-book"></i>
+                    書籍管理
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="/admin/orders" class="nav-link" th:classappend="${activeMenu == 'orders' ? 'active' : ''}">
+                    <i class="fas fa-shopping-cart"></i>
+                    訂單管理
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="/admin/points" class="nav-link" th:classappend="${activeMenu == 'points' ? 'active' : ''}">
+                    <i class="fas fa-coins"></i>
+                    點數管理
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="/admin/coupons" class="nav-link" th:classappend="${activeMenu == 'coupons' ? 'active' : ''}">
+                    <i class="fas fa-ticket-alt"></i>
+                    優惠券管理
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="/admin/logs" class="nav-link" th:classappend="${activeMenu == 'logs' ? 'active' : ''}">
+                    <i class="fas fa-history"></i>
+                    操作紀錄
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主要內容區域 -->
+    <div class="main-content">
+        <!-- 頁面標題 -->
+        <div class="header">
+            <div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>書店管理系統</h1>
+            </div>
+            
+            <div class="user-menu">
+                <span class="text-muted">歡迎，管理員</span>
+                <form th:action="@{/logout}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-sign-out-alt"></i> 登出
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 頁面內容 -->
+        <div layout:fragment="content">
+            <!-- 這裡會被具體頁面內容替換 -->
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 側邊欄切換功能
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+        
+        // 點擊側邊欄外部時關閉側邊欄
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                sidebar.classList.remove('show');
+            }
+        });
+        
+        // 自動隱藏側邊欄（在移動設備上）
+        function checkScreenSize() {
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('show');
+            }
+        }
+        
+        window.addEventListener('resize', checkScreenSize);
+        checkScreenSize();
+    </script>
+
+    <!-- 額外的腳本區域 -->
+    <div layout:fragment="scripts">
+        <!-- 子頁面的 JavaScript 會插入這裡 -->
+    </div>
+</body>
+</html>

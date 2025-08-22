@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{admin/layout}">
+<head>
+    <!-- 保留原有 head -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員管理</title>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- 搜尋和篩選 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" action="/admin/users" class="row g-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="keyword" 
+                                   th:value="${keyword}" placeholder="搜尋會員姓名或信箱...">
+                            <button class="btn btn-primary" type="submit" aria-label="搜尋">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="status">
+                            <option value="" th:selected="${(status == null or #strings.isEmpty(status)) and (param.status == null or #strings.isEmpty(param.status))}">所有狀態</option>
+                            <option value="true" th:selected="${status == 'true' or status == true or param.status == 'true'}">啟用</option>
+                            <option value="false" th:selected="${status == 'false' or status == false or param.status == 'false'}">停權</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/admin/users" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-refresh"></i> 重置
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 會員列表 -->
+        <div class="card" th:with="page=${pageData}, total=${page.totalElements}, pageNumber=${page.number + 1}, totalPages=${page.totalPages}, size=${page.size}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users"></i> 會員列表</h5>
+                <span class="badge bg-primary" th:text="${total + ' 位會員'}">0 位會員</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>頭像</th>
+                                <th>姓名</th>
+                                <th>信箱</th>
+                                <th>性別</th>
+                                <th>會員等級</th>
+                                <th>狀態</th>
+                                <th>註冊日期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="user : ${page.content}">
+                                <td th:text="${user.userId}">1</td>
+                                <td>
+                                    <img th:if="${user.avatarUrl}" th:src="${user.avatarUrl}" 
+                                         class="rounded-circle" width="40" height="40" alt="頭像">
+                                    <div th:unless="${user.avatarUrl}" 
+                                         class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white"
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                </td>
+                                <td th:text="${user.username ?: '未設定'}">使用者名稱</td>
+                                <td th:text="${user.email}">user@example.com</td>
+                                <td th:text="${user.gender ?: '未設定'}">未設定</td>
+                                <td th:text="${membershipTiers[user.userId] ?: '—'}">—</td>
+                                <td>
+                                    <span th:if="${user.enabled}" class="badge bg-success">啟用</span>
+                                    <span th:unless="${user.enabled}" class="badge bg-danger">停權</span>
+                                </td>
+                                <td th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd')}">2024-01-01</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button
+                                            class="btn btn-warning btn-sm js-toggle-status"
+                                            th:attr="data-user-id=${user.userId},data-enabled=${!user.enabled}">
+                                            <i class="fas fa-toggle-on"></i> 停權/啟用
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${total == 0}">
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                                    <p>沒有找到會員資料</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分頁列 -->
+                <nav th:if="${totalPages > 1}" aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/users(page=${pageNumber - 1}, size=${size}, keyword=${keyword}, status=${status})}">上一頁</a>
+                        </li>
+                        <li class="page-item" th:each="p : ${#numbers.sequence(1, totalPages)}" th:classappend="${p == pageNumber} ? 'active'">
+                            <a class="page-link" th:text="${p}" th:href="@{/admin/users(page=${p}, size=${size}, keyword=${keyword}, status=${status})}">1</a>
+                        </li>
+                        <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/users(page=${pageNumber + 1}, size=${size}, keyword=${keyword}, status=${status})}">下一頁</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <div layout:fragment="scripts">
+        <script>
+            function getCsrf() {
+                const tokenEl = document.querySelector('meta[name="_csrf"]');
+                const headerEl = document.querySelector('meta[name="_csrf_header"]');
+                return tokenEl && headerEl ? { token: tokenEl.getAttribute('content'), header: headerEl.getAttribute('content') } : null;
+            }
+            // 以事件委託處理，避免在屬性上輸出事件處理字串
+            document.addEventListener('click', function(e) {
+                const tgl = e.target.closest('.js-toggle-status');
+                if (tgl) {
+                    const userId = tgl.getAttribute('data-user-id');
+                    const enabled = tgl.getAttribute('data-enabled') === 'true'; // 目標狀態
+                    const action = enabled ? '啟用' : '停權';
+                    if (confirm(`確定要${action}這位會員嗎？`)) {
+                        const csrf = getCsrf();
+                        const headers = Object.assign({ 'Content-Type': 'application/x-www-form-urlencoded' }, csrf ? { [csrf.header]: csrf.token } : {});
+                        fetch(`/admin/users/${userId}/toggle-status`, {
+                            method: 'POST',
+                            headers,
+                            body: `enabled=${enabled}`
+                        })
+                        .then(response => response.text())
+                        .then(result => {
+                            if (result === 'success') {
+                                // 切換成功後，保持目前的篩選條件，直接重新整理頁面
+                                location.reload();
+                            } else {
+                                alert('操作失敗：' + result);
+                            }
+                        })
+                        .catch(error => { console.error('Error:', error); alert('操作失敗，請稍後再試'); });
+                    }
+                    return;
+                }
+            });
+
+            // 狀態篩選
+            const statusSel = document.querySelector('select[name="status"]');
+            if (statusSel) {
+                statusSel.addEventListener('change', function() {
+                    const status = this.value;
+                    const currentUrl = new URL(window.location);
+                    if (status) currentUrl.searchParams.set('status', status); else currentUrl.searchParams.delete('status');
+                    window.location.href = currentUrl.toString();
+                });
+            }
+        </script>
+    </div>
+</body>
+</html>

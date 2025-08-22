@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{admin/layout}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>書籍管理</title>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- 搜尋和篩選 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <form method="get" action="/admin/books" class="d-flex">
+                            <input type="text" class="form-control me-2" name="keyword" 
+                                   th:value="${keyword}" placeholder="搜尋書籍標題或語言...">
+                            <button class="btn btn-primary" type="submit" aria-label="搜尋">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="status">
+                            <option value="" th:selected="${status == null or #strings.isEmpty(status)}">所有狀態</option>
+                            <option value="ON_SALE" th:selected="${status == 'ON_SALE'}">販售中</option>
+                            <option value="OFF_SALE" th:selected="${status == 'OFF_SALE'}">停售</option>
+                            <option value="OUT_OF_STOCK" th:selected="${status == 'OUT_OF_STOCK'}">缺貨</option>
+                            <option value="DISCONTINUED" th:selected="${status == 'DISCONTINUED'}">已停產</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/admin/books/new" class="btn btn-success w-100">
+                            <i class="fas fa-plus"></i> 新增書籍
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 書籍列表 -->
+        <div class="card" th:with="page=${pageData}, total=${page.totalElements}, pageNumber=${page.number + 1}, totalPages=${page.totalPages}, size=${page.size}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-book"></i> 書籍列表</h5>
+                <span class="badge bg-primary" th:text="${total + ' 本書籍'}">0 本書籍</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>封面</th>
+                                <th>標題</th>
+                                <th>價格</th>
+                                <th>格式</th>
+                                <th>語言</th>
+                                <th>狀態</th>
+                                <th>更新日期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="book : ${page.content}">
+                                <td th:text="${book.id}">1</td>
+                                <td>
+                                    <img th:if="${book.coverImageUrl}" th:src="${book.coverImageUrl}" 
+                                         class="img-thumbnail" width="60" height="80" alt="封面">
+                                    <div th:unless="${book.coverImageUrl}" 
+                                         class="bg-light d-flex align-items-center justify-content-center text-muted"
+                                         style="width: 60px; height: 80px;">
+                                        <i class="fas fa-book fa-2x"></i>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong th:text="${book.title}">書籍標題</strong>
+                                        <br>
+                                        <small class="text-muted" th:text="${'ID: ' + book.publisherId}">ID: 1</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-success" th:text="${'$' + book.listPrice}">$299</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info" th:text="${book.format}">電子書</span>
+                                </td>
+                                <td th:text="${book.language ?: '未設定'}">繁體中文</td>
+                                <td>
+                                    <span th:switch="${book.status}">
+                                        <span th:case="'ON_SALE'" class="badge bg-success">販售中</span>
+                                        <span th:case="'OFF_SALE'" class="badge bg-warning">停售</span>
+                                        <span th:case="'OUT_OF_STOCK'" class="badge bg-danger">缺貨</span>
+                                        <span th:case="'DISCONTINUED'" class="badge bg-secondary">已停產</span>
+                                        <span th:case="*" class="badge bg-secondary" th:text="${book.status}">狀態</span>
+                                    </span>
+                                </td>
+                                <td th:text="${#temporals.format(book.updatedAt, 'yyyy-MM-dd')}">2024-01-01</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a th:href="@{/admin/books/{id}/edit(id=${book.id})}" 
+                                           class="btn btn-primary btn-sm">
+                                            <i class="fas fa-edit"></i> 編輯
+                                        </a>
+                                        <button class="btn btn-danger btn-sm js-delete-book"
+                                                th:attr="data-id=${book.id}">
+                                            <i class="fas fa-trash"></i> 刪除
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${total == 0}">
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-book fa-3x mb-3"></i>
+                                    <p>沒有找到書籍資料</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分頁列 -->
+                <nav th:if="${totalPages > 1}" aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/books(page=${pageNumber - 1}, size=${size}, keyword=${keyword}, status=${status})}">上一頁</a>
+                        </li>
+                        <li class="page-item" th:each="p : ${#numbers.sequence(1, totalPages)}" th:classappend="${p == pageNumber} ? 'active'">
+                            <a class="page-link" th:text="${p}" th:href="@{/admin/books(page=${p}, size=${size}, keyword=${keyword}, status=${status})}">1</a>
+                        </li>
+                        <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/books(page=${pageNumber + 1}, size=${size}, keyword=${keyword}, status=${status})}">下一頁</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <div layout:fragment="scripts">
+        <script>
+            function getCsrf() {
+                const tokenEl = document.querySelector('meta[name="_csrf"]');
+                const headerEl = document.querySelector('meta[name="_csrf_header"]');
+                return tokenEl && headerEl ? { token: tokenEl.getAttribute('content'), header: headerEl.getAttribute('content') } : null;
+            }
+            document.addEventListener('click', function(e) {
+                const delBtn = e.target.closest('.js-delete-book');
+                if (delBtn) {
+                    const id = delBtn.getAttribute('data-id');
+                    if (!id) return;
+                    if (!confirm('確定要刪除這本書籍嗎？此操作無法復原。')) return;
+                    const csrf = getCsrf();
+                    const headers = csrf ? { [csrf.header]: csrf.token } : {};
+                    fetch(`/admin/books/${id}/delete`, { method: 'POST', headers })
+                        .then(r => r.text())
+                        .then(result => { if (result === 'success') { alert('書籍已成功刪除'); location.reload(); } else { alert('刪除失敗：' + result); } })
+                        .catch(err => { console.error('Error:', err); alert('刪除失敗，請稍後再試'); });
+                }
+            });
+            document.querySelector('select[name="status"]').addEventListener('change', function() {
+                const status = this.value; const url = new URL(window.location);
+                if (status) url.searchParams.set('status', status); else url.searchParams.delete('status');
+                window.location.href = url.toString();
+            });
+        </script>
+    </div>
+</body>
+</html>

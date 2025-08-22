@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>書籍表單</title>
+</head>
+<body>
+    <div th:fragment="content">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-book"></i> 
+                    <span th:text="${book.id != null ? '編輯書籍' : '新增書籍'}">書籍表單</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <form th:action="${book.id != null ? '/admin/books/' + book.id : '/admin/books'}" 
+                      th:object="${book}" method="post" enctype="multipart/form-data">
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">書籍標題 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="title" th:field="*{title}" 
+                                       placeholder="請輸入書籍標題" required>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="publisherId" class="form-label">出版社ID</label>
+                                        <input type="number" class="form-control" id="publisherId" th:field="*{publisherId}" 
+                                               placeholder="請輸入出版社ID">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="listPrice" class="form-label">定價 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="listPrice" th:field="*{listPrice}" 
+                                                   step="1" min="0" placeholder="0" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="format" class="form-label">格式 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="format" th:field="*{format}" required>
+                                            <option value="">請選擇格式</option>
+                                            <option value="電子書">電子書</option>
+                                            <option value="平裝書">平裝書</option>
+                                            <option value="精裝書">精裝書</option>
+                                            <option value="有聲書">有聲書</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="language" class="form-label">語言</label>
+                                        <select class="form-select" id="language" th:field="*{language}">
+                                            <option value="">請選擇語言</option>
+                                            <option value="繁體中文">繁體中文</option>
+                                            <option value="簡體中文">簡體中文</option>
+                                            <option value="英文">英文</option>
+                                            <option value="日文">日文</option>
+                                            <option value="韓文">韓文</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="status" class="form-label">狀態</label>
+                                <select class="form-select" id="status" th:field="*{status}">
+                                    <option value="ON_SALE">販售中</option>
+                                    <option value="OFF_SALE">停售</option>
+                                    <option value="OUT_OF_STOCK">缺貨</option>
+                                    <option value="DISCONTINUED">已停產</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="publishedAt" class="form-label">出版日期</label>
+                                <input type="datetime-local" class="form-control" id="publishedAt" th:field="*{publishedAt}">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="coverImage" class="form-label">封面圖片</label>
+                                <div class="text-center mb-3" id="coverPreview">
+                                    <img th:if="${book.coverImageUrl}" th:src="${book.coverImageUrl}"
+                                         class="img-thumbnail" style="max-width: 200px; max-height: 250px;" alt="封面預覽">
+                                    <div th:unless="${book.coverImageUrl}"
+                                         class="bg-light d-flex align-items-center justify-content-center text-muted"
+                                         style="width: 200px; height: 250px; border: 2px dashed #dee2e6;">
+                                        <i class="fas fa-image fa-3x"></i>
+                                    </div>
+                                </div>
+                                <input type="file" class="form-control" id="coverImage" name="coverImage" 
+                                       accept="image/*" onchange="previewImage(this)">
+                                <small class="text-muted">支援 JPG, PNG, GIF 格式，建議尺寸 400x500 像素</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="/admin/books" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> 返回列表
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            <span th:text="${book.id != null ? '更新' : '儲存'}">儲存</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const container = document.getElementById('coverPreview');
+                    container.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-thumbnail';
+                    img.style.maxWidth = '200px';
+                    img.style.maxHeight = '250px';
+                    img.alt = '封面預覽';
+                    container.appendChild(img);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // 頁面載入時設定預設值
+        document.addEventListener('DOMContentLoaded', function() {
+            // 設定當前日期為預設出版日期（如果沒有值）
+            const publishedAtInput = document.getElementById('publishedAt');
+            if (publishedAtInput && !publishedAtInput.value) {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                publishedAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+        });
+    </script>
+</body>
+</html>

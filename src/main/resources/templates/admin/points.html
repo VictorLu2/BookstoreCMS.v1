@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{admin/layout}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點數管理</title>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- 點數規則設定 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> 點數規則設定</h5>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/admin/points/update-rules}" th:object="${pointRule}" method="post" id="pointRuleForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="rewardRatePercent" class="form-label">回饋比率 (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="rewardRatePercent"
+                                           min="0" max="100"
+                                           th:value="${pointRule.rewardRateBp != null ? pointRule.rewardRateBp / 100 : 0}" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">輸入百分比（例如：1 表示 1%）</small>
+                                <!-- 隱藏的實際綁定欄位（萬分比） -->
+                                <input type="hidden" id="rewardRateBpHidden" name="rewardRateBp" th:value="${pointRule.rewardRateBp}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="maxRewardPoints" class="form-label">每筆回饋上限</label>
+                                <input type="number" class="form-control" id="maxRewardPoints" th:field="*{maxRewardPoints}" 
+                                       min="0" placeholder="無上限">
+                                <small class="text-muted">留空表示無上限</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="redeemRate" class="form-label">點數兌換率</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="redeemRate" th:field="*{redeemRate}" 
+                                           step="1" min="0" required>
+                                    <span class="input-group-text">元/點</span>
+                                </div>
+                                <small class="text-muted">1點可折抵多少元（整數）</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="maxRedeemRatioPercent" class="form-label">折抵上限 (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="maxRedeemRatioPercent"
+                                           min="0" max="100" placeholder="無上限"
+                                           th:value="${pointRule.maxRedeemRatioBp != null ? pointRule.maxRedeemRatioBp / 100 : ''}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <small class="text-muted">例如：50 表示最多可折抵 50%（留空表示無上限）</small>
+                                <!-- 隱藏的實際綁定欄位（萬分比） -->
+                                <input type="hidden" id="maxRedeemRatioBpHidden" name="maxRedeemRatioBp" th:value="${pointRule.maxRedeemRatioBp}">
+                            </div>
+                            
+                            <!-- 固定為滾動天數到期 -->
+                            <input type="hidden" name="expiryPolicy" value="ROLLING_DAYS">
+                            <div class="mb-3" id="rollingDaysGroup">
+                                <label for="rollingDays" class="form-label">到期天數</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="rollingDays" th:field="*{rollingDays}"
+                                           min="1" max="3650" required>
+                                    <span class="input-group-text">天</span>
+                                </div>
+                                <small class="text-muted">獲點後多少天到期（已固定為滾動天數到期）</small>
+                            </div>
+                            <!-- 移除 fixedExpireDayGroup 與 expiryPolicy 下拉 -->
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> 儲存設定
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 點數統計 -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-coins fa-3x text-warning mb-3"></i>
+                        <h4 class="card-title" th:text="${totalIssuedPoints}">0</h4>
+                        <p class="card-text text-muted">總發放點數</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-users fa-3x text-info mb-3"></i>
+                        <h4 class="card-title" th:text="${membersWithPoints}">0</h4>
+                        <p class="card-text text-muted">有點數會員數</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-3x text-danger mb-3"></i>
+                        <h4 class="card-title" th:text="${expiringSoonPoints}">0</h4>
+                        <p class="card-text text-muted">即將到期點數</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 點數計算範例 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calculator"></i> 點數計算範例</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>消費回饋計算</h6>
+                        <div class="mb-3">
+                            <label for="exampleAmount" class="form-label">消費金額</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="exampleAmount" value="1000" min="0">
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <strong>可獲得點數：</strong>
+                            <span id="earnedPoints">0</span> 點
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>點數折抵計算</h6>
+                        <div class="mb-3">
+                            <label for="examplePoints" class="form-label">使用點數</label>
+                            <input type="number" class="form-control" id="examplePoints" value="100" min="0">
+                        </div>
+                        <div class="mb-3">
+                            <label for="exampleOrderAmount" class="form-label">訂單金額</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="exampleOrderAmount" value="500" min="0">
+                            </div>
+                        </div>
+                        <div class="alert alert-success">
+                            <strong>可折抵金額：</strong>
+                            <span id="deductedAmount">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 會員點數列表 -->
+        <div class="card mt-4" th:with="page=${pageData}, total=${page.totalElements}, pageNumber=${page.number + 1}, totalPages=${page.totalPages}, size=${page.size}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users"></i> 會員點數</h5>
+                <form method="get" action="/admin/points" class="d-flex" style="gap:8px;">
+                    <input type="text" class="form-control" name="keyword" th:value="${keyword}" placeholder="搜尋 Email 或名稱">
+                    <button class="btn btn-outline-primary" type="submit" aria-label="搜尋"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-end mb-2">
+                    <span class="badge bg-primary" th:text="${total + ' 位會員'}">0 位會員</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>會員ID</th>
+                                <th>Email</th>
+                                <th>名稱</th>
+                                <th class="text-end">餘額</th>
+                                <th class="text-end">已預留</th>
+                                <th class="text-end">可用</th>
+                                <th class="text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="up : ${page.content}">
+                                <td th:text="${up.userId}">1</td>
+                                <td th:text="${up.email}">user@example.com</td>
+                                <td th:text="${up.username}">使用者</td>
+                                <td class="text-end" th:text="${up.balance}">0</td>
+                                <td class="text-end" th:text="${up.reserved}">0</td>
+                                <td class="text-end" th:text="${up.available}">0</td>
+                                <td class="text-center">
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-secondary js-open-ledger" th:attr="data-user-id=${up.userId},data-email=${up.email}">
+                                            <i class="fas fa-list"></i> 查看流水
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-primary js-open-adjust" th:attr="data-user-id=${up.userId},data-email=${up.email}">
+                                            <i class="fas fa-edit"></i> 調整
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${total == 0}">
+                                <td colspan="7" class="text-center text-muted">無資料</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分頁列 -->
+                <nav th:if="${totalPages > 1}" aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/points(page=${pageNumber - 1}, size=${size}, keyword=${keyword})}">上一頁</a>
+                        </li>
+                        <li class="page-item" th:each="p : ${#numbers.sequence(1, totalPages)}" th:classappend="${p == pageNumber} ? 'active'">
+                            <a class="page-link" th:text="${p}" th:href="@{/admin/points(page=${p}, size=${size}, keyword=${keyword})}">1</a>
+                        </li>
+                        <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/points(page=${pageNumber + 1}, size=${size}, keyword=${keyword})}">下一頁</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- 調整點數 Modal -->
+        <div class="modal fade" id="adjustPointsModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">調整點數</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="adjustForm">
+                            <input type="hidden" id="adjUserId">
+                            <div class="mb-3">
+                                <label class="form-label">會員</label>
+                                <input type="text" id="adjUserLabel" class="form-control" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">調整值（可正可負）</label>
+                                <input type="number" id="adjDelta" class="form-control" placeholder="例如：+100 或 -50" required>
+                                <small class="text-muted">正數=加點；負數=扣點（扣點將依 FIFO 扣批次，且需有足夠可用點數）</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">自訂到期天數（僅加點）</label>
+                                <div class="input-group">
+                                    <input type="number" id="adjOverrideDays" class="form-control" min="1" placeholder="留空＝依規則">
+                                    <span class="input-group-text">天</span>
+                                </div>
+                                <small class="text-muted">僅對加點生效；留空或 ≤ 0 則依目前規則（到期天數）</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">備註（選填）</label>
+                                <input type="text" id="adjNote" class="form-control" placeholder="備註說明">
+                            </div>
+                        </form>
+                        <div class="small text-muted" id="adjExpiryPreview"></div>
+                        <div class="alert alert-warning d-none" id="adjWarn"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" id="adjSubmitBtn">
+                            <i class="fas fa-check"></i> 確認
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 點數流水 Modal -->
+        <div class="modal fade" id="ledgerModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">點數流水</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                            <div class="text-muted" id="ledgerUserLabel">會員：</div>
+                            <div class="small">
+                                <i class="fas fa-hourglass-half text-warning"></i>
+                                30 天內將過期：<span id="expiringIn30" class="fw-bold">0</span> 點
+                            </div>
+                        </div>
+                        <div class="mb-2 text-center py-4 d-none" id="ledgerLoading">
+                            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                        </div>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>時間</th>
+                                        <th>原因</th>
+                                        <th class="text-end">變動</th>
+                                        <th class="text-end">餘額</th>
+                                        <th>備註</th>
+                                        <th>訂單ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ledgerTbody">
+                                    <tr class="text-center text-muted"><td colspan="6">尚無資料</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h6 class="mb-2"><i class="fas fa-hourglass-half"></i> 可用批次與到期</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>來源</th>
+                                        <th class="text-end">剩餘</th>
+                                        <th>到期日</th>
+                                        <th class="text-end">距離到期</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lotsTbody">
+                                    <tr class="text-center text-muted"><td colspan="4">尚無批次</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div layout:fragment="scripts">
+        <script>
+            // 提交前將百分比轉換為萬分比寫入隱藏欄位
+            document.getElementById('pointRuleForm').addEventListener('submit', function(e) {
+                const pct = parseInt(document.getElementById('rewardRatePercent').value || '0', 10);
+                const pctMax = document.getElementById('maxRedeemRatioPercent').value;
+                document.getElementById('rewardRateBpHidden').value = isNaN(pct) ? 0 : pct * 100;
+                if (pctMax === '' || pctMax === null) {
+                    document.getElementById('maxRedeemRatioBpHidden').value = '';
+                } else {
+                    const val = parseInt(pctMax, 10);
+                    document.getElementById('maxRedeemRatioBpHidden').value = isNaN(val) ? '' : val * 100;
+                }
+            });
+
+            // 計算 — 使用百分比輸入
+            function calculateEarnedPoints() {
+                const amount = parseFloat(document.getElementById('exampleAmount').value) || 0;
+                const rewardPercent = parseInt(document.getElementById('rewardRatePercent').value) || 0;
+                const maxPoints = parseInt(document.getElementById('maxRewardPoints').value) || 0;
+                let points = Math.floor(amount * rewardPercent / 100);
+                if (maxPoints > 0 && points > maxPoints) points = maxPoints;
+                document.getElementById('earnedPoints').textContent = points;
+            }
+            function calculateDeductedAmount() {
+                const points = parseInt(document.getElementById('examplePoints').value) || 0;
+                const orderAmount = parseInt(document.getElementById('exampleOrderAmount').value) || 0;
+                const redeemRate = parseInt(document.getElementById('redeemRate').value) || 1;
+                const maxPercent = parseInt(document.getElementById('maxRedeemRatioPercent').value) || 0;
+
+                // 整數計算：以元為單位，不顯示小數
+                let deduction = points * redeemRate; // 預設可折抵金額（元）
+                if (maxPercent > 0) {
+                    const maxDeduction = Math.floor(orderAmount * maxPercent / 100);
+                    if (deduction > maxDeduction) deduction = maxDeduction;
+                }
+                deduction = Math.max(0, Math.floor(deduction));
+                document.getElementById('deductedAmount').textContent = '$' + deduction;
+            }
+
+            // 綁定事件
+            document.getElementById('exampleAmount').addEventListener('input', calculateEarnedPoints);
+            document.getElementById('examplePoints').addEventListener('input', calculateDeductedAmount);
+            document.getElementById('exampleOrderAmount').addEventListener('input', calculateDeductedAmount);
+            document.getElementById('rewardRatePercent').addEventListener('input', calculateEarnedPoints);
+            document.getElementById('maxRedeemRatioPercent').addEventListener('input', calculateDeductedAmount);
+
+            document.addEventListener('DOMContentLoaded', function() {
+                calculateEarnedPoints();
+                calculateDeductedAmount();
+            });
+
+            let adjustModal;
+            document.addEventListener('DOMContentLoaded', function() {
+                const modalEl = document.getElementById('adjustPointsModal');
+                if (modalEl) adjustModal = new bootstrap.Modal(modalEl);
+            });
+            function openAdjustModal(userId, email) {
+                document.getElementById('adjUserId').value = userId;
+                document.getElementById('adjUserLabel').value = `ID: ${userId} / ${email}`;
+                document.getElementById('adjDelta').value = '';
+                document.getElementById('adjOverrideDays').value = '';
+                document.getElementById('adjNote').value = '';
+                document.getElementById('adjWarn').classList.add('d-none');
+                refreshAdjustExpiryPreview();
+                adjustModal && adjustModal.show();
+            }
+
+            function refreshAdjustExpiryPreview() {
+                const previewEl = document.getElementById('adjExpiryPreview');
+                if (!previewEl) return;
+                const delta = parseInt(document.getElementById('adjDelta').value || '0', 10);
+                const overrideDaysVal = parseInt(document.getElementById('adjOverrideDays').value || '0', 10);
+                if (isNaN(delta) || delta <= 0) { previewEl.textContent = '加點時才會產生到期日'; return; }
+                let days = 0;
+                if (!isNaN(overrideDaysVal) && overrideDaysVal > 0) {
+                    days = overrideDaysVal;
+                } else {
+                    const ruleDays = parseInt(document.getElementById('rollingDays')?.value || '0', 10);
+                    days = isNaN(ruleDays) ? 0 : ruleDays;
+                }
+                if (days > 0) {
+                    const d = new Date();
+                    d.setDate(d.getDate() + days);
+                    previewEl.textContent = `新增加點到期：${formatDateTime(d)}（約 ${days} 天後）`;
+                } else {
+                    previewEl.textContent = '新增加點到期：未設定（請確認規則到期天數）';
+                }
+            }
+
+            document.getElementById('adjDelta')?.addEventListener('input', refreshAdjustExpiryPreview);
+            document.getElementById('adjOverrideDays')?.addEventListener('input', refreshAdjustExpiryPreview);
+
+            document.getElementById('adjSubmitBtn')?.addEventListener('click', async function() {
+                const userId = document.getElementById('adjUserId').value;
+                const delta = document.getElementById('adjDelta').value;
+                const note = document.getElementById('adjNote').value || '';
+                const overrideDays = document.getElementById('adjOverrideDays').value;
+                const warn = document.getElementById('adjWarn');
+                if (!delta || isNaN(parseInt(delta))) {
+                    warn.textContent = '請輸入有效的調整值';
+                    warn.classList.remove('d-none');
+                    return;
+                }
+                try {
+                    const params = new URLSearchParams();
+                    params.append('delta', parseInt(delta));
+                    if (note) params.append('note', note);
+                    if (overrideDays && parseInt(overrideDays) > 0) params.append('overrideExpiryDays', parseInt(overrideDays));
+                    const res = await fetch(`/admin/points/users/${userId}/adjust`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params
+                    });
+                    const txt = await res.text();
+                    if (txt === 'success') {
+                        alert('調整完成');
+                        location.reload();
+                    } else {
+                        warn.textContent = '調整失敗：' + txt;
+                        warn.classList.remove('d-none');
+                    }
+                } catch (e) {
+                    warn.textContent = '調整失敗：' + e;
+                    warn.classList.remove('d-none');
+                }
+            });
+
+            let ledgerModal;
+            document.addEventListener('DOMContentLoaded', function() {
+                const ledgerEl = document.getElementById('ledgerModal');
+                if (ledgerEl) ledgerModal = new bootstrap.Modal(ledgerEl);
+            });
+
+            function openLedgerModal(userId, email) {
+                document.getElementById('ledgerUserLabel').textContent = `會員：ID ${userId} / ${email}`;
+                const tbody = document.getElementById('ledgerTbody');
+                tbody.innerHTML = '<tr class="text-center text-muted"><td colspan="6">載入中...</td></tr>';
+                document.getElementById('ledgerLoading').classList.remove('d-none');
+                // 顯示 Modal
+                ledgerModal && ledgerModal.show();
+                // 取流水
+                fetch(`/api/points/${userId}/ledger`)
+                    .then(r => r.json())
+                    .then(list => {
+                        document.getElementById('ledgerLoading').classList.add('d-none');
+                        if (!Array.isArray(list) || list.length === 0) {
+                            tbody.innerHTML = '<tr class="text-center text-muted"><td colspan="6">尚無資料</td></tr>';
+                            return;
+                        }
+                        list.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                        const reasonText = {
+                            'PURCHASE_REWARD': '消費回饋',
+                            'REDEEM': '折抵扣點',
+                            'ADJUSTMENT': '後台調整',
+                            'EXPIRE': '到期扣回',
+                            'REFUND': '退款調整'
+                        };
+                        const rows = list.map(item => {
+                            const dt = item.createdAt ? new Date(item.createdAt) : null;
+                            const time = dt ? dt.toLocaleString() : '';
+                            const change = item.changeAmount || 0;
+                            const changeHtml = change >= 0
+                                ? `<span class="text-success">+${change}</span>`
+                                : `<span class="text-danger">${change}</span>`;
+                            const bal = item.balanceAfter ?? '';
+                            const note = item.note ? item.note : '';
+                            const orderId = item.relatedOrderId ?? '';
+                            const reason = reasonText[item.reason] || item.reason || '';
+                            return `<tr>
+                                <td>${time}</td>
+                                <td>${reason}</td>
+                                <td class="text-end">${changeHtml}</td>
+                                <td class="text-end">${bal}</td>
+                                <td>${note}</td>
+                                <td>${orderId}</td>
+                            </tr>`;
+                        }).join('');
+                        tbody.innerHTML = rows;
+                    })
+                    .catch(err => {
+                        document.getElementById('ledgerLoading').classList.add('d-none');
+                        tbody.innerHTML = `<tr class="text-center text-danger"><td colspan="6">載入失敗：${err}</td></tr>`;
+                    });
+                // 取批次與到期
+                const lotsTbody = document.getElementById('lotsTbody');
+                lotsTbody.innerHTML = '<tr class="text-center text-muted"><td colspan="4">載入中...</td></tr>';
+                fetch(`/api/points/${userId}/lots`)
+                    .then(r => r.json())
+                    .then(list => {
+                        if (!Array.isArray(list) || list.length === 0) {
+                            lotsTbody.innerHTML = '<tr class="text-center text-muted"><td colspan="4">尚無批次</td></tr>';
+                            return;
+                        }
+                        const rows = list.map(l => {
+                            const sourceMap = { 'ORDER': '訂單', 'ADJUSTMENT': '調整', 'OTHER': '其他' };
+                            const exp = l.expiresAt ? formatDateTime(l.expiresAt) : '不會到期';
+                            return `<tr>
+                                <td>${sourceMap[l.source] || l.source}</td>
+                                <td class="text-end">${l.remainingPoints}</td>
+                                <td>${exp}</td>
+                                <td class="text-end">${daysUntil(l.expiresAt)}</td>
+                            </tr>`;
+                        }).join('');
+                        lotsTbody.innerHTML = rows;
+                    })
+                    .catch(err => {
+                        lotsTbody.innerHTML = `<tr class="text-center text-danger"><td colspan="4">載入失敗：${err}</td></tr>`;
+                    });
+                // 取 30 天內將過期點數
+                const expiringEl = document.getElementById('expiringIn30');
+                expiringEl.textContent = '...';
+                fetch(`/api/points/${userId}/expiring?days=30`)
+                    .then(r => r.json())
+                    .then(obj => { expiringEl.textContent = obj && typeof obj.expiring === 'number' ? obj.expiring : 0; })
+                    .catch(() => { expiringEl.textContent = 0; });
+            }
+
+            // 以事件委託處理按鈕點擊，避免在 th:onclick 中輸出文字
+            document.addEventListener('click', function(e) {
+                const ledgerBtn = e.target.closest('.js-open-ledger');
+                if (ledgerBtn) {
+                    e.preventDefault();
+                    const uid = ledgerBtn.getAttribute('data-user-id');
+                    const email = ledgerBtn.getAttribute('data-email');
+                    openLedgerModal(uid, email);
+                    return;
+                }
+                const adjustBtn = e.target.closest('.js-open-adjust');
+                if (adjustBtn) {
+                    e.preventDefault();
+                    const uid = adjustBtn.getAttribute('data-user-id');
+                    const email = adjustBtn.getAttribute('data-email');
+                    openAdjustModal(uid, email);
+                }
+            });
+
+            function formatDateTime(dt) {
+                if (!dt) return '';
+                const d = new Date(dt);
+                if (isNaN(d)) return '';
+                return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            }
+            function daysUntil(dt) {
+                if (!dt) return '不會到期';
+                const d = new Date(dt);
+                const today = new Date();
+                d.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                const diff = Math.ceil((d - today) / 86400000);
+                if (diff < 0) return '已到期';
+                if (diff === 0) return '今天';
+                return diff + ' 天';
+            }
+        </script>
+    </div>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>優惠券表單</title>
+</head>
+<body>
+    <div th:fragment="content">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-ticket-alt"></i> 
+                    <span th:text="${coupon.id != null ? '編輯優惠券' : '新增優惠券'}">優惠券表單</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <form th:action="${coupon.id != null ? '/admin/coupons/' + coupon.id : '/admin/coupons'}" 
+                      th:object="${coupon}" method="post">
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">優惠券名稱 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" th:field="*{name}" 
+                                       placeholder="請輸入優惠券名稱" required>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3" id="genericCodeGroup">
+                                        <label for="genericCode" class="form-label">通用代碼</label>
+                                        <input type="text" class="form-control" id="genericCode" th:field="*{genericCode}" 
+                                               placeholder="例: WELCOME2024">
+                                        <small class="text-muted">留空將自動生成</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="discountType" class="form-label">折扣類型 <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="discountType" th:field="*{discountType}" required>
+                                            <option value="">請選擇折扣類型</option>
+                                            <option value="PERCENT">百分比折扣</option>
+                                            <option value="FIXED">固定金額折扣</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="discountValue" class="form-label">折扣值 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="discountValue" th:field="*{discountValue}" 
+                                                   step="1" min="0" inputmode="numeric" pattern="\\d*" oninput="this.value = this.value.replace(/[^0-9]/g,'')" required>
+                                            <span class="input-group-text" id="discountUnit">%</span>
+                                        </div>
+                                        <small class="text-muted">僅允許整數，不可輸入小數點</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="maxDiscountAmount" class="form-label">最大折扣金額</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="maxDiscountAmount" th:field="*{maxDiscountAmount}" 
+                                                   step="0.01" min="0" placeholder="無上限">
+                                        </div>
+                                        <small class="text-muted">留空表示無上限</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="minSpendAmount" class="form-label">最低消費金額</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="minSpendAmount" th:field="*{minSpendAmount}" 
+                                                   step="1" min="0" placeholder="無限制">
+                                        </div>
+                                        <small class="text-muted">留空表示無限制</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="startsAt" class="form-label">開始時間 <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" class="form-control" id="startsAt" th:field="*{startsAt}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="endsAt" class="form-label">結束時間 <span class="text-danger">*</span></label>
+                                        <input type="datetime-local" class="form-control" id="endsAt" th:field="*{endsAt}" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="totalUsageLimit" class="form-label">總使用次數限制</label>
+                                        <input type="number" class="form-control" id="totalUsageLimit" th:field="*{totalUsageLimit}" 
+                                               min="1" placeholder="無限制">
+                                        <small class="text-muted">留空表示無限制</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="perUserLimit" class="form-label">每人使用次數限制</label>
+                                        <input type="number" class="form-control" id="perUserLimit" th:field="*{perUserLimit}" 
+                                               min="1" placeholder="無限制">
+                                        <small class="text-muted">留空表示無限制</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="status" class="form-label">狀態</label>
+                                <select class="form-select" id="status" th:field="*{status}">
+                                    <option value="DRAFT">草稿</option>
+                                    <option value="ACTIVE">啟用</option>
+                                    <option value="PAUSED">暫停</option>
+                                    <option value="EXPIRED">已過期</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> 優惠券預覽</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-ticket-alt fa-3x text-primary"></i>
+                                    </div>
+                                    <div id="couponPreview">
+                                        <p class="text-muted">請填寫表單以預覽優惠券</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-calculator"></i> 折扣計算器</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="calcAmount" class="form-label">訂單金額</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="calcAmount" value="1000" min="0">
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <strong>折扣金額：</strong>
+                                        <span id="calculatedDiscount">$0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="/admin/coupons" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> 返回列表
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            <span th:text="${coupon.id != null ? '更新' : '儲存'}">儲存</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 折扣類型切換
+        document.getElementById('discountType').addEventListener('change', function() {
+            const discountUnit = document.getElementById('discountUnit');
+            if (this.value === 'PERCENT') {
+                discountUnit.textContent = '%';
+            } else if (this.value === 'FIXED') {
+                discountUnit.textContent = '$';
+            }
+            updateCouponPreview();
+        });
+        
+        // 更新優惠券預覽
+        function updateCouponPreview() {
+            const name = document.getElementById('name').value || '優惠券名稱';
+            const discountType = document.getElementById('discountType').value;
+            const rawVal = document.getElementById('discountValue').value;
+            const discountValue = isNaN(parseInt(rawVal)) ? 0 : parseInt(rawVal, 10);
+            const minSpend = document.getElementById('minSpendAmount').value;
+            const startsAt = document.getElementById('startsAt').value;
+            const endsAt = document.getElementById('endsAt').value;
+            
+            let previewHtml = `
+                <h6>${name}</h6>
+                <p class="mb-2">
+                    <span class="badge bg-primary">
+                        ${discountType === 'PERCENT' ? discountValue + '% 折扣' : '$' + discountValue + ' 折扣'}
+                    </span>
+                </p>
+            `;
+            
+            if (minSpend) {
+                previewHtml += `<p class="text-muted small">最低消費 $${minSpend}</p>`;
+            }
+            
+            if (startsAt && endsAt) {
+                const startDate = new Date(startsAt).toLocaleDateString();
+                const endDate = new Date(endsAt).toLocaleDateString();
+                previewHtml += `<p class="text-muted small">有效期：${startDate} ~ ${endDate}</p>`;
+            }
+            
+            document.getElementById('couponPreview').innerHTML = previewHtml;
+        }
+        
+        // 折扣計算器
+        function calculateDiscount() {
+            const amount = parseInt(document.getElementById('calcAmount').value) || 0;
+            const discountType = document.getElementById('discountType').value;
+            const discountValue = parseInt(document.getElementById('discountValue').value) || 0;
+            const maxDiscount = parseFloat(document.getElementById('maxDiscountAmount').value) || 0; // 上限仍可為小數
+            const minSpend = parseInt(document.getElementById('minSpendAmount').value) || 0;
+
+            if (minSpend > 0 && amount < minSpend) {
+                document.getElementById('calculatedDiscount').textContent = '未達最低消費';
+                return;
+            }
+            
+            let discount = 0;
+            if (discountType === 'PERCENT') {
+                discount = amount * discountValue / 100;
+            } else if (discountType === 'FIXED') {
+                discount = discountValue;
+            }
+            
+            if (maxDiscount > 0 && discount > maxDiscount) {
+                discount = maxDiscount;
+            }
+            
+            // 以元為單位，不顯示小數點
+            const display = Math.max(0, Math.floor(discount));
+            document.getElementById('calculatedDiscount').textContent = '$' + display;
+        }
+        
+        // 綁定事件
+        const formInputs = ['name', 'discountType', 'discountValue', 'minSpendAmount', 'startsAt', 'endsAt'];
+        formInputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', updateCouponPreview);
+            }
+        });
+        
+        document.getElementById('calcAmount').addEventListener('input', calculateDiscount);
+        
+        // 頁面載入時設定預設值
+        document.addEventListener('DOMContentLoaded', function() {
+            // 設定當前時間為預設開始時間
+            const startsAtInput = document.getElementById('startsAt');
+            if (startsAtInput && !startsAtInput.value) {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                startsAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+            
+            // 設定預設結束時間（開始時間後30天）
+            const endsAtInput = document.getElementById('endsAt');
+            if (endsAtInput && !endsAtInput.value && startsAtInput.value) {
+                const startDate = new Date(startsAtInput.value);
+                const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+                const year = endDate.getFullYear();
+                const month = String(endDate.getMonth() + 1).padStart(2, '0');
+                const day = String(endDate.getDate()).padStart(2, '0');
+                const hours = String(endDate.getHours()).padStart(2, '0');
+                const minutes = String(endDate.getMinutes()).padStart(2, '0');
+                endsAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+            
+            updateCouponPreview();
+            calculateDiscount();
+        });
+    </script>
+</body>
+</html>

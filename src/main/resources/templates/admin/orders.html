@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{admin/layout}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單管理</title>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- 搜尋和篩選 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <form method="get" action="/admin/orders" class="d-flex">
+                            <label for="keyword" class="visually-hidden">關鍵字</label>
+                            <input id="keyword" type="text" class="form-control me-2" name="keyword"
+                                   th:value="${keyword}" placeholder="搜尋訂單號或會員信箱...">
+                            <button class="btn btn-primary" type="submit" aria-label="搜尋">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="status" class="visually-hidden">狀態</label>
+                        <select id="status" class="form-select" name="status">
+                            <option value="" th:selected="${(status == null or #strings.isEmpty(status)) and (param.status == null or #strings.isEmpty(param.status))}">所有狀態</option>
+                            <option value="CREATED" th:selected="${status == 'CREATED' or param.status == 'CREATED'}">已建立</option>
+                            <option value="PAYING" th:selected="${status == 'PAYING' or param.status == 'PAYING'}">付款中</option>
+                            <option value="PAID" th:selected="${status == 'PAID' or param.status == 'PAID'}">已付款</option>
+                            <option value="FAILED" th:selected="${status == 'FAILED' or param.status == 'FAILED'}">付款失敗</option>
+                            <option value="FULFILLED" th:selected="${status == 'FULFILLED' or param.status == 'FULFILLED'}">已完成</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-secondary w-100" onclick="exportOrders()">
+                            <i class="fas fa-download"></i> 導出訂單
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 訂單列表 -->
+        <div class="card" th:with="page=${pageData}, total=${page.totalElements}, pageNumber=${page.number + 1}, totalPages=${page.totalPages}, size=${page.size}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> 訂單列表</h5>
+                <span class="badge bg-primary" th:text="${total + ' 筆訂單'}">0 筆訂單</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>訂單號</th>
+                                <th>會員</th>
+                                <th>金額</th>
+                                <th>折扣</th>
+                                <th>點數折抵</th>
+                                <th>應付金額</th>
+                                <th>狀態</th>
+                                <th>付款方式</th>
+                                <th>建立時間</th>
+                                <!-- 移除操作欄位 -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="order : ${page.content}">
+                                <td>
+                                    <strong th:text="${order.orderNo}">ORD2024001</strong>
+                                    <br>
+                                    <small class="text-muted" th:text="${'ID: ' + order.id}">ID: 1</small>
+                                </td>
+                                <td>
+                                    <div>
+                                        <span th:text="${order.user != null ? order.user.email : '未知會員'}">user@example.com</span>
+                                        <br>
+                                        <small class="text-muted" th:text="${order.user != null ? 'ID: ' + order.user.userId : 'ID: -'}">ID: 1</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-bold" th:text="${'$' + order.totalAmount}">$1,000</span>
+                                </td>
+                                <td>
+                                    <span th:if="${order.discountAmount > 0}" 
+                                          class="text-success" th:text="${'$' + order.discountAmount}">$50</span>
+                                    <span th:unless="${order.discountAmount > 0}" class="text-muted">$0</span>
+                                </td>
+                                <td>
+                                    <span th:if="${order.pointsDeductionAmount > 0}" 
+                                          class="text-info" th:text="${'$' + order.pointsDeductionAmount}">$20</span>
+                                    <span th:unless="${order.pointsDeductionAmount > 0}" class="text-muted">$0</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-primary" th:text="${'$' + order.payableAmount}">$930</span>
+                                </td>
+                                <td>
+                                    <span th:switch="${order.status}">
+                                        <span th:case="'CREATED'" class="badge bg-secondary">已建立</span>
+                                        <span th:case="'PAYING'" class="badge bg-warning">付款中</span>
+                                        <span th:case="'PAID'" class="badge bg-success">已付款</span>
+                                        <span th:case="'FAILED'" class="badge bg-danger">付款失敗</span>
+                                        <span th:case="'FULFILLED'" class="badge bg-primary">已完成</span>
+                                        <span th:case="*" class="badge bg-secondary" th:text="${order.status}">狀態</span>
+                                    </span>
+                                </td>
+                                <td th:text="${order.paymentType ?: '未設定'}">信用卡</td>
+                                <td>
+                                    <div>
+                                        <small th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd')}">2024-01-01</small>
+                                        <br>
+                                        <small th:text="${#temporals.format(order.createdAt, 'HH:mm')}">14:30</small>
+                                    </div>
+                                </td>
+                                <!-- 移除操作按鈕列 -->
+                            </tr>
+                            <tr th:if="${total == 0}">
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-shopping-cart fa-3x mb-3"></i>
+                                    <p>沒有找到訂單資料</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分頁列 -->
+                <nav th:if="${totalPages > 1}" aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/orders(page=${pageNumber - 1}, size=${size}, keyword=${keyword}, status=${status})}">上一頁</a>
+                        </li>
+                        <li class="page-item" th:each="p : ${#numbers.sequence(1, totalPages)}" th:classappend="${p == pageNumber} ? 'active'">
+                            <a class="page-link" th:text="${p}" th:href="@{/admin/orders(page=${p}, size=${size}, keyword=${keyword}, status=${status})}">1</a>
+                        </li>
+                        <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/admin/orders(page=${pageNumber + 1}, size=${size}, keyword=${keyword}, status=${status})}">下一頁</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- 訂單統計 -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-shopping-cart fa-2x text-primary mb-2"></i>
+                        <h5 class="card-title" th:text="${orderTotalCount}">0</h5>
+                        <p class="card-text text-muted">總訂單數</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
+                        <h5 class="card-title" th:text="${'$' + orderTotalSales}">$0</h5>
+                        <p class="card-text text-muted">總銷售額</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-check-circle fa-2x text-info mb-2"></i>
+                        <h5 class="card-title" th:text="${orderCompletedCount}">0</h5>
+                        <p class="card-text text-muted">已完成</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                        <h5 class="card-title" th:text="${orderProcessingCount}">0</h5>
+                        <p class="card-text text-muted">處理中</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div layout:fragment="scripts">
+        <script>
+            function exportOrders() {
+                alert('匯出訂單功能開發中...');
+            }
+
+            // 狀態篩選：立即綁定，避免 DOMContentLoaded 已經觸發導致未綁定
+            (function() {
+                const sel = document.querySelector('select[name="status"]');
+                if (!sel) return;
+                sel.addEventListener('change', function() {
+                    const url = new URL(window.location);
+                    if (this.value) url.searchParams.set('status', this.value); else url.searchParams.delete('status');
+                    window.location.href = url.toString();
+                });
+            })();
+        </script>
+    </div>
+</body>
+</html>
